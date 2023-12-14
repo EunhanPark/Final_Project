@@ -1,74 +1,27 @@
-***모델을 학습시키고 저장한 파일('model.pkl')을 eclass에 추가로 업로드하였습니다. (github에는 용량이 커서 업로드되지 않음)***
+# 프로젝트 설명
 
-# Scikit Learn을 활용한 종양 분류
+이 프로젝트는 두 가지 다른 종류의 두뇌 종양 데이터셋을 활용하여 종양을 분류하는 작업을 수행합니다. 주요 목표는 scikit-learn 라이브러리를 활용하여 최적의 모델과 하이퍼파라미터를 찾아내고 이를 저장하는 것입니다.
 
-뇌 종양 이미지를 "glioma tumor," "meningioma tumor," "no tumor," "pituitary tumor" 네 가지 범주로 분류하는 프로젝트입니다. 머신 러닝 모델을 구축하고 평가하기 위해 scikit-learn 라이브러리를 사용합니다.
+## 훈련 데이터셋
 
-## 데이터셋
+두 개의 다른 데이터셋을 사용했습니다. `tumor_dataset/Training`은 기존 데이터셋이며, `tumor_dataset_different/Training`은 추가적인 데이터셋입니다. 각 데이터셋에는 'glioma_tumor', 'meningioma_tumor', 'no_tumor', 'pituitary_tumor'의 네 가지 레이블이 있습니다. 이미지는 64x64 크기로 변환되고 그레이스케일로 변환되었습니다.
+'tumor_dataset_different/Training'은 https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset 의 Training 과 Testing을 합쳐 사용했습니다.
+## 선택한 알고리즘 및 하이퍼파라미터
 
-데이터셋은 'tumor_dataset/Training' 디렉토리에 위치하며 각 종양 범주에 대한 이미지를 포함합니다. 이미지는 전처리되어 크기가 조정되고 회색조로 변환됩니다.
+이 프로젝트에서는 K-최근접 이웃(KNN) 알고리즘을 활용하였습니다. KNN은 주변 데이터 포인트들의 다수결로 새로운 데이터 포인트의 레이블을 예측하는 간단하면서도 효과적인 알고리즘입니다.
 
-## 정규화 및 데이터 증강
+- 첫 번째 모델 (`model_knn1`): K=1로 설정된 KNN 모델로, 가장 가까운 이웃의 레이블을 사용하여 예측합니다.
+- 두 번째 모델 (`model_knn2`): K=5로 설정된 KNN 모델로, 거리에 가중치를 부여하여 예측합니다.
+- 앙상블 모델 (`model_vc`): VotingClassifier를 사용하여 위의 두 KNN 모델을 소프트 투표 방식으로 결합합니다.
 
-StandardScaler를 사용하여 특성 벡터를 정규화하고, 훈련 데이터셋을 향상시키기 위해 이미지를 수직으로 뒤집는 데이터 증강을 수행합니다.
+## 하이퍼파라미터 튜닝
 
-```python
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+모델의 성능을 향상시키기 위해 앙상블 모델에서는 여러 하이퍼파라미터를 튜닝할 수 있습니다. 여기서는 간단한 예시로 KNN 모델에서 K의 값을 조절하였습니다.
 
-# 데이터 증강
-def augment_data(images, labels):
-    # 함수 코드 작성...
+## 결과
 
-X_train_augmented, y_train_augmented = augment_data(X_train_scaled, y_train)
-X_train_combined = np.vstack([X_train, X_train_augmented])
-y_train_combined = np.concatenate([y_train, y_train_augmented])
+선택한 앙상블 모델의 정확도는 0.98로 나타났습니다. 이 모델은 두 데이터셋을 결합하여 더 강력한 일반화 능력을 갖추고 있습니다.
 
-X_train_combined, y_train_combined = shuffle(X_train_combined, y_train_combined, random_state=46)
-```
+## 모델 저장
 
-## 서포트 벡터 머신 (SVM) 모델
-
-특정 hyperparameter로 조정된 RBF(Radial Basis Function) 커널을 사용하는 SVM 모델을 훈련합니다.
-
-```python
-model = SVC(kernel='rbf', C=175, gamma=0.0002, random_state=46)
-model.fit(X_train_combined, y_train_combined)
-```
-
-## Hyperparameter 튜닝
-
-Hyperparameter 튜닝은 최적의 조합을 찾기 위해 수행할 수 있습니다. 값을 바꾸며 여러번 실행한 결과 C=175, gamma=0.0002를 얻었고 이를 적용하였습니다.
-
-```python
-# param_grid = {'C': [170], 'gamma': [0.0002], 'kernel': ['rbf']}
-# grid = GridSearchCV(SVC(random_state=46), param_grid, refit=True, verbose=3, cv=3, n_jobs=-1)
-# grid.fit(X_train_combined, y_train_combined)
-# print(grid.best_params_)
-# print(grid.best_estimator_)
-```
-
-## 모델 저장 및 불러오기
-
-모델을 파일로 저장하고, 평가를 위해 불러옵니다.
-
-```python
-# 모델 저장
-joblib.dump(model, 'model.pkl')
-
-# 모델 로드
-model_load = joblib.load('model.pkl')
-```
-
-## 모델 평가
-
-훈련된 모델을 로드하고 테스트 데이터셋에서의 성능을 평가합니다.
-
-```python
-# 예측 수행
-y_pred = model_load.predict(X_test_scaled)
-
-# 정확도 출력
-print('정확도: %.2f' % sklearn.metrics.accuracy_score(y_test, y_pred))
-```
+마지막으로, `joblib`을 사용하여 훈련된 모델을 'model.pkl' 파일로 저장하였습니다. 이 파일은 나중에 재사용하거나 다른 컴퓨터에서 결과를 재현하는 데 사용될 수 있습니다.
